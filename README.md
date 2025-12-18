@@ -8,3 +8,9 @@ Provides a custom PDA log system for various Subnautica mods.
 - Built using BepInEx and Nautilus
 
 NexusMods: https://www.nexusmods.com/subnautica/mods/2866
+
+Hello Im violet im a modder fixing/helping working on this mod.
+
+The offical Repo for this is at 
+
+https://github.com/TDCDev1/CustomPDA-Log-Mod
