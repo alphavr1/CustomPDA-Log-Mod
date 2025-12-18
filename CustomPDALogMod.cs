@@ -1,59 +1,141 @@
-using System;
-using System.IO;
-using System.Reflection;
-using Newtonsoft.Json;
-using UnityEngine;
-using Nautilus.Assets;
-using Nautilus.Crafting;
-using Nautilus.Handlers;
-using Nautilus.Utility;
 using BepInEx;
+using Nautilus.Handlers;
+using UnityEngine;
+using Newtonsoft.Json;
+using System.IO;
+using System;
+using System.Collections.Generic;
 
-[BepInPlugin("tdcdev.custompdalogmod", "Custom PDA Logs Mod", "1.0.0")]
-[BepInProcess("Subnautica.exe")]
-public class CustomPDALogsMod : BaseUnityPlugin
+namespace CustomPDALogMod
 {
-    private string logsPath;
-
-    void Awake()
+    [BepInPlugin("TDCDev.CustomPDALogMod", "Custom PDA Log Mod", "1.0.1")]
+    public class CustomPDALogMod : BaseUnityPlugin
     {
-        logsPath = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "logs");
-        if (!Directory.Exists(logsPath))
-            Directory.CreateDirectory(logsPath);
+        private string LogsFolder;
 
-        string[] jsonFiles = Directory.GetFiles(logsPath, "*.json");
-        Logger.LogInfo($"[CustomPDALogsMod] {jsonFiles.Length} JSON dosyasý bulundu.");
-
-        foreach (var file in jsonFiles)
+        private void Awake()
         {
-            try
-            {
-                string jsonText = File.ReadAllText(file);
-                PDALog logData = JsonConvert.DeserializeObject<PDALog>(jsonText);
+            LogsFolder = Path.Combine(Path.GetDirectoryName(Info.Location), "logs");
 
-                if (logData != null)
-                    AddLogToPDA(logData);
-            }
-            catch (Exception ex)
+            if (!Directory.Exists(LogsFolder))
+                Directory.CreateDirectory(LogsFolder);
+
+            LoadLogs();
+        }
+
+        private void LoadLogs()
+        {
+            var allLogs = new Dictionary<string, List<PDALogData>>();
+
+            foreach (string file in Directory.GetFiles(LogsFolder, "*.json"))
             {
-                Logger.LogError($"[CustomPDALogsMod] JSON iþlenirken hata: {file}\n{ex}");
+                try
+                {
+                    string json = File.ReadAllText(file);
+                    PDALogData data = JsonConvert.DeserializeObject<PDALogData>(json);
+
+                    if (data == null) continue;
+
+                    string cat = string.IsNullOrEmpty(data.category) ? "Custom Logs" : data.category;
+                    string sub = string.IsNullOrEmpty(data.subcategory) ? "General" : data.subcategory;
+                    string key = cat + "|" + sub;
+
+                    if (!allLogs.ContainsKey(key))
+                        allLogs[key] = new List<PDALogData>();
+
+                    allLogs[key].Add(data);
+
+                    RegisterLog(data);
+                    SpawnLog(data);
+                }
+                catch (Exception e)
+                {
+                    Logger.LogError($"Log yÃ¼klenemedi: {file} | {e}");
+                }
             }
+
+            Logger.LogInfo($"Toplam {allLogs.Count} kategori yÃ¼klendi.");
+        }
+
+        private void RegisterLog(PDALogData data)
+        {
+            if (data == null || string.IsNullOrEmpty(data.id))
+                return;
+
+            string category = string.IsNullOrEmpty(data.category) ? "Custom Logs" : data.category;
+            string subCategory = string.IsNullOrEmpty(data.subcategory) ? "General" : data.subcategory;
+
+            // Placeholder icon ve sprite
+            Texture2D dummyIcon = Texture2D.whiteTexture;
+            Sprite dummySprite = Sprite.Create(dummyIcon, new Rect(0, 0, 1, 1), Vector2.zero);
+            FMODAsset dummyAudio = null;
+
+            PDAHandler.AddEncyclopediaEntry(
+                data.id,
+                category,
+                subCategory,
+                data.title ?? data.id,
+                dummyIcon,
+                dummySprite,
+                dummyAudio,
+                dummyAudio
+            );
+
+            Logger.LogInfo($"Log kaydedildi: {data.id} ({category} | {subCategory})");
+        }
+
+        private void SpawnLog(PDALogData data)
+        {
+            if (data == null || string.IsNullOrEmpty(data.id))
+                return;
+
+            TechType techType;
+            if (!Enum.TryParse(data.techType, out techType))
+                techType = TechType.PDA;
+
+            // Prefab fallback
+            GameObject prefab = Resources.Load<GameObject>("Submarine/Prefabs/PDA");
+
+            if (prefab == null)
+            {
+                Logger.LogError($"Prefab bulunamadÄ±: {techType}");
+                return;
+            }
+
+            GameObject clone = GameObject.Instantiate(prefab);
+            clone.name = data.id;
+
+            Vector3 pos = data.position != null
+                ? new Vector3(data.position.x, data.position.y, data.position.z)
+                : Vector3.zero;
+
+            Vector3 rot = data.rotation != null
+                ? new Vector3(data.rotation.x, data.rotation.y, data.rotation.z)
+                : Vector3.zero;
+
+            clone.transform.position = pos;
+            clone.transform.eulerAngles = rot;
+
+            Logger.LogInfo($"Log spawn edildi: {data.id}");
         }
     }
 
-    private void AddLogToPDA(PDALog log)
+    public class PDALogData
     {
-        // Buraya PDA log ekleme iþlemi yazýlacak
+        public string id;
+        public string techType;       // PDA, PDA_geo vb.
+        public string title;
+        public string description;
+        public string category;       // opsiyonel
+        public string subcategory;    // opsiyonel
+        public PositionData position; // opsiyonel
+        public PositionData rotation; // opsiyonel
     }
 
-    public class PDALog
+    public class PositionData
     {
-        public string id { get; set; }
-        public string category { get; set; }
-        public string subcategory { get; set; }
-        public string title { get; set; }
-        public string text { get; set; }
-        public string modelPath { get; set; }
-        public bool unlockOnStart { get; set; } = false;
+        public float x;
+        public float y;
+        public float z;
     }
 }
