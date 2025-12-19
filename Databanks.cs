@@ -1,3 +1,4 @@
+using BepInEx;
 using CustomPDALogMod;
 using Nautilus.Handlers;
 using Newtonsoft.Json;
@@ -17,7 +18,7 @@ namespace PDALogs
         public static readonly List<JsonDef> LoadedJsons = new List<JsonDef>();
         private static readonly HashSet<string> RegisteredLogs = new HashSet<string>();
 
-        protected static void RegisterDataBanks(JsonDef logsettings, Texture2D image)
+        protected static void RegisterDataBanks(JsonDef logsettings, Texture2D image,FMODAsset Audiolog)
         {
             if (string.IsNullOrEmpty(logsettings.id))
                 throw new Exception("Log id is null or empty");
@@ -29,9 +30,12 @@ namespace PDALogs
                     logsettings.title,
                     logsettings.description,
                     image,
-                    unlockSound: PDAHandler.UnlockImportant
+                    null,
+                    unlockSound: PDAHandler.UnlockImportant,
+                    Audiolog
+                    
                     );
-
+            Plugin.Log.LogInfo($"Log {logsettings.title} has registered.");
 
             StoryGoalHandler.RegisterCustomEvent(logsettings.id, () =>
             {
@@ -46,7 +50,58 @@ namespace PDALogs
             
         }
 
-        
+        internal static IEnumerator registerdatabankswithaudio(string audio, JsonDef log)
+        {
+            Plugin.Log.LogInfo($"starting to convert audiofile to fmod path: {log.Audiofile}");
+            FMODAsset VoiceLogFMODAsset = AudiotoFMODAsset.ConverttoFMOD(log.Audiofile,log);
+
+            RegisterDataBanks(log , null , VoiceLogFMODAsset);
+
+            yield return VoiceLogFMODAsset;
+
+        }
+
+        internal static IEnumerator registerdatabankswithaudioandimage(string audio,Texture2D image, JsonDef log)
+        {
+            Plugin.Log.LogInfo($"starting to convert audiofile to fmod path: {log.Audiofile}");
+            FMODAsset VoiceLogFMODAsset = AudiotoFMODAsset.ConverttoFMOD(log.Audiofile, log);
+
+            RegisterDataBanks(log, image, VoiceLogFMODAsset);
+
+            yield return VoiceLogFMODAsset && image;
+
+        }
+
+
+        internal static IEnumerator RegisterDatabankwithimage(string imagepath, JsonDef log)
+        {
+            string pathofmodfolder = Path.Combine(Paths.PluginPath, "CustomPDALogMod");
+            string pathoflogfolder = Path.Combine(pathofmodfolder, "logs");
+            string pathofimagefolder = Path.Combine(pathoflogfolder, "Image");
+            string pathofimage = Path.Combine(pathofimagefolder, imagepath);
+            Plugin.Log.LogInfo($"attempting to set up pda with image {pathofimage}");
+
+            Texture2D image = ImagetoTexture2d.convert(pathofimage);
+
+            if (log.Audiofile == string.Empty)
+            {
+
+                RegisterDataBanks(log, image, null);
+                yield return image;
+
+            }
+            else
+            {
+
+                CoroutineHost.StartCoroutine(registerdatabankswithaudioandimage(log.Audiofile, image, log));
+                yield return image;
+            }
+
+
+
+
+                yield return image;
+        }
         
 
         internal static void LoadLogs(string directory)
@@ -62,18 +117,30 @@ namespace PDALogs
                     {
                     }
 
-                    if (log.Imagepath == "null")
+                    if (log.Imagepath == string.Empty)
                     {
-                        RegisterDataBanks(log, null);
+                        if (log.Audiofile == string.Empty)
+                        {
+                            RegisterDataBanks(log, null, null);
+                            LoadedJsons.Add(log);
+                        }
+                        else
+                        {
+                            CoroutineHost.StartCoroutine(registerdatabankswithaudio(log.Audiofile, log));
+                            LoadedJsons.Add(log);
+                        }
                     }
                     else
-
-                        
-
-                        RegisterDataBanks(log, null);
+                    {
 
 
-                    LoadedJsons.Add(log);
+
+
+                        CoroutineHost.StartCoroutine(RegisterDatabankwithimage(log.Imagepath, log));
+
+
+                        LoadedJsons.Add(log);
+                    }
 
                     
                 }
