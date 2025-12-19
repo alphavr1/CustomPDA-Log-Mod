@@ -8,6 +8,7 @@ namespace PDALogs
         public string id{ get; set; }
         public string title{ get; set; }
         public string Imagepath { get; set; }
+        public string Audiofile { get; set; }
         public string description{ get; set; }
         public string category{ get; set; }
         public Vector3 position{ get; set; }
