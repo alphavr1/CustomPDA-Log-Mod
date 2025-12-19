@@ -11,32 +11,24 @@ namespace CustomPDALogMod
 {
     internal class ImagetoTexture2d
     {
-        private List<JsonDef> Json = Databanks.LoadedJsons;
-        private static string Imagepath; 
         public static Texture2D texture;
+        public static bool Imageisloaded = false;
 
-        public static void convert(string ImagePath)
+        public static Texture2D convert(string ImagePath)
         {
-            
+            if (!File.Exists(ImagePath))
+                Plugin.Log.LogError($"Image {ImagePath} is not valid.");
 
-            ImagePath = Imagepath;
+                return null;
 
-            
-            
-                if (File.Exists(Imagepath))
-                {
-                    byte[] filedata = File.ReadAllBytes(Imagepath);
+            byte[] fileData = File.ReadAllBytes(ImagePath);
 
-                    texture = new Texture2D(1, 1);
+            Texture2D texture = new Texture2D(2, 2, TextureFormat.BC5, false);
 
-                    if (ImageConversion.LoadImage(texture,filedata))
-                    {
-                        
-                    }
-                
-               
+            if (!ImageConversion.LoadImage(texture, fileData))
+                return null;
 
-                }
+            return texture;
         }
     }
 }
