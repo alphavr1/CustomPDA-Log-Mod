@@ -17,7 +17,7 @@ namespace PDALogs
         public static readonly List<JsonDef> LoadedJsons = new List<JsonDef>();
         private static readonly HashSet<string> RegisteredLogs = new HashSet<string>();
 
-        protected static void RegisterDataBanks(JsonDef logsettings)
+        protected static void RegisterDataBanks(JsonDef logsettings, Texture2D image)
         {
             if (string.IsNullOrEmpty(logsettings.id))
                 throw new Exception("Log id is null or empty");
@@ -28,13 +28,19 @@ namespace PDALogs
                     logsettings.category,
                     logsettings.title,
                     logsettings.description,
+                    image,
                     unlockSound: PDAHandler.UnlockImportant
                     );
+
 
             StoryGoalHandler.RegisterCustomEvent(logsettings.id, () =>
             {
 
                 PDAEncyclopedia.Add(logsettings.id, true);
+
+                // Save Data Stuff || Verileri Kaydetme Şeyleri
+                Plugin.Pdacache.CollectedPDAs.Add(logsettings.id);
+                
 
             });
             
@@ -55,8 +61,16 @@ namespace PDALogs
                     if (log == null)
                     {
                     }
-              
-                    RegisterDataBanks(log);
+
+                    if (log.Imagepath == "null")
+                    {
+                        RegisterDataBanks(log, null);
+                    }
+                    else
+
+                        
+
+                        RegisterDataBanks(log, null);
 
 
                     LoadedJsons.Add(log);
